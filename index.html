@@ -1,0 +1,793 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recomp Tracker</title>
+<link rel="stylesheet" href="theme.css">
+<script src="vendor/d3.min.js"></script>
+<script src="dash-runtime.js"></script>
+</head>
+<body>
+<div id="dash-root">
+<style>
+#dash-root .rt{display:flex;flex-direction:column;gap:var(--cds-gap-xl);font-family:var(--font-anthropic-sans);color:var(--color-fg)}
+#dash-root .rt-head{display:flex;flex-direction:column;gap:var(--cds-gap-sm)}
+#dash-root .rt-title{font-family:var(--font-anthropic-serif);font-weight:400;font-size:var(--cds-font-size-title);margin:0;text-wrap:balance}
+#dash-root .rt-take{margin:0;max-width:70ch;font-size:var(--cds-font-size-body);color:var(--color-fg-muted);line-height:1.5}
+#dash-root .rt-take b{color:var(--color-fg);font-weight:600;font-variant-numeric:tabular-nums}
+#dash-root .rt-sec{display:flex;flex-direction:column;gap:var(--cds-gap-md)}
+#dash-root .rt-h2{font-size:var(--cds-font-size-heading);font-weight:var(--cds-font-weight-medium);margin:0}
+#dash-root .rt-note{margin:0;font-size:var(--cds-font-size-caption);color:var(--color-fg-muted);max-width:75ch;line-height:1.45}
+#dash-root .rt-grid{display:grid;gap:var(--cds-gap-md);grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr))}
+#dash-root .rt-grid-lifts{grid-template-columns:repeat(auto-fill,minmax(min(100%,17rem),1fr))}
+#dash-root .rt-card{position:relative;min-width:0;display:flex;flex-direction:column;gap:var(--cds-gap-sm);background:var(--color-panel);border:1px solid var(--color-border-line);border-radius:var(--cds-radius);padding:var(--cds-pad-lg)}
+#dash-root .rt-card-top{display:flex;align-items:center;justify-content:space-between;gap:var(--cds-gap-sm);flex-wrap:wrap}
+#dash-root .rt-h3{margin:0;font-size:var(--cds-font-size-body);font-weight:var(--cds-font-weight-medium)}
+#dash-root .rt-big{font-family:var(--font-anthropic-serif);font-weight:400;font-size:var(--cds-font-size-title);font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:.3em;line-height:1.1}
+#dash-root .rt-x{color:var(--color-fg-muted);font-size:.7em}
+#dash-root .rt-sub{font-size:var(--cds-font-size-caption);color:var(--color-fg-muted);font-variant-numeric:tabular-nums}
+#dash-root .rt-chg.up{color:var(--color-ok)}
+#dash-root .rt-chg.down{color:var(--color-bad)}
+#dash-root .rt-pill{font-size:var(--cds-font-size-caption);color:var(--color-warn);border:1px solid var(--color-border-line);border-radius:999px;padding:0 var(--cds-pad-sm);white-space:nowrap}
+#dash-root .rt-chart{position:relative;width:100%;min-height:200px}
+#dash-root .rt-chart-sm{min-height:150px}
+#dash-root .rt-chart svg{display:block;overflow:visible}
+#dash-root .rt-chart text{font-family:var(--font-anthropic-sans);font-size:var(--cds-font-size-caption);fill:var(--color-fg-muted)}
+#dash-root .rt-fail{display:flex;align-items:center;justify-content:center;gap:var(--cds-gap-xs);min-height:inherit;height:100%;font-size:var(--cds-font-size-caption);color:var(--color-fg-muted)}
+#dash-root .rt-fail::before{content:"";width:.375rem;height:.375rem;border-radius:50%;background:var(--color-bad)}
+#dash-root .rt-empty{display:flex;align-items:center;justify-content:center;min-height:inherit;font-size:var(--cds-font-size-caption);color:var(--color-fg-muted)}
+#dash-root .rt-tip{position:absolute;z-index:5;pointer-events:none;background:var(--cds-surface-popover);border:1px solid var(--cds-border);border-radius:var(--cds-radius);box-shadow:var(--cds-shadow-popover);padding:var(--cds-pad-xs) var(--cds-pad-sm);font-size:var(--cds-font-size-caption);white-space:nowrap;font-variant-numeric:tabular-nums}
+#dash-root .rt-tip .rt-tip-h{color:var(--cds-text-secondary)}
+#dash-root .rt-tip .rt-sw{display:inline-block;width:.55rem;height:.55rem;border-radius:2px;margin-right:.35rem;vertical-align:baseline}
+#dash-root .rt-legend{display:flex;gap:var(--cds-gap-md);flex-wrap:wrap;font-size:var(--cds-font-size-caption);color:var(--color-fg-muted)}
+#dash-root .rt-legend span::before{content:"";display:inline-block;width:.7rem;height:2px;margin-right:.35rem;vertical-align:middle;background:var(--sw)}
+#dash-root .rt-legend .dot::before{width:.45rem;height:.45rem;border-radius:50%}
+#dash-root .rt-ctrl{display:flex;gap:var(--cds-gap-sm);align-items:center;flex-wrap:wrap}
+#dash-root .rt-ctrl select{font:inherit;font-size:var(--cds-font-size-body);padding:var(--cds-pad-xs) var(--cds-pad-sm);border:1px solid var(--color-border-line);border-radius:var(--cds-radius);background:var(--color-bg);color:var(--color-fg);max-width:100%}
+#dash-root .rt-ctrl label{font-size:var(--cds-font-size-caption);color:var(--color-fg-muted)}
+#dash-root .rt-tablebox{max-height:22rem;overflow:auto;border-top:1px solid var(--color-border-line)}
+#dash-root .rt-table{width:100%;border-collapse:collapse;font-size:var(--cds-font-size-caption);font-variant-numeric:tabular-nums}
+#dash-root .rt-table th{position:sticky;top:0;background:var(--color-panel);text-align:right;font-weight:var(--cds-font-weight-medium);color:var(--color-fg-muted);padding:var(--cds-pad-xs) var(--cds-pad-sm);border-bottom:1px solid var(--color-border-line);white-space:nowrap}
+#dash-root .rt-table td{text-align:right;padding:var(--cds-pad-xs) var(--cds-pad-sm);border-bottom:1px solid var(--color-border-line)}
+#dash-root .rt-table th:first-child,#dash-root .rt-table td:first-child{text-align:left}
+#dash-root .rt-table .hide-narrow{}
+@container (max-width: 30rem){}
+@media (max-width: 30rem){#dash-root .rt-table .hide-narrow{display:none}}
+#dash-root .rt-tiles{display:grid;gap:var(--cds-gap-md);grid-template-columns:repeat(auto-fit,minmax(min(100%,9rem),1fr))}
+#dash-root .rt-tile{display:flex;flex-direction:column;gap:2px;min-width:0}
+#dash-root .rt-tile-l{font-size:var(--cds-font-size-caption);color:var(--color-fg-muted)}
+#dash-root .rt-tile-v{font-family:var(--font-anthropic-serif);font-weight:400;font-size:var(--cds-font-size-title);font-variant-numeric:tabular-nums;line-height:1.1}
+#dash-root .rt-tile-v small{font-family:var(--font-anthropic-sans);font-size:var(--cds-font-size-caption);color:var(--color-fg-muted);margin-left:.2em}
+#dash-root .rt-tile-v.good{color:var(--color-ok)}
+#dash-root .rt-tile-v.bad{color:var(--color-bad)}
+#dash-root .rt-seg{display:inline-flex;border:1px solid var(--color-border-line);border-radius:var(--cds-radius);overflow:hidden;flex-wrap:wrap}
+#dash-root .rt-seg button{font:inherit;font-size:var(--cds-font-size-caption);background:transparent;color:var(--color-fg-muted);border:0;border-right:1px solid var(--color-border-line);padding:var(--cds-pad-xs) var(--cds-pad-sm);cursor:pointer}
+#dash-root .rt-seg button:last-child{border-right:0}
+#dash-root .rt-seg button[aria-pressed=true]{background:var(--color-bg);color:var(--color-fg);font-weight:var(--cds-font-weight-medium)}
+#dash-root .rt-seg button:focus-visible{outline:2px solid var(--color-fg);outline-offset:-2px}
+#dash-root .rt-chart-lg{min-height:300px}
+#dash-root [data-dash-source-state=empty]{color:transparent}
+#dash-root [data-dash-source-state=refreshing]{opacity:.5;transition:opacity var(--cds-dur-slow)}
+@media (prefers-reduced-motion: no-preference){
+  #dash-root .rt-line-in{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:rt-draw var(--cds-dur-slow) var(--cds-ease-out) forwards}
+  @keyframes rt-draw{to{stroke-dashoffset:0}}
+}
+</style>
+
+<div class="rt">
+  <header class="rt-head" id="summary">
+    <h1 class="rt-title">Recomp Tracker</h1>
+    <p class="rt-take" id="takeaway">Your 7-day average weight is <b class="dash-skeleton" data-source="bw_summary" data-field="avg">—</b> lb, <b data-source="bw_summary" data-field="vs_start">—</b> lb against the 155 lb phase start and <b data-source="bw_summary" data-field="to_target">—</b> lb above the 156 lb Dec 13 target. Waist is <b data-source="waist_summary" data-field="waist_in">—</b> in. Incline DB press estimated max is <b data-source="lift_summary" data-field="change_pct" data-where="exercise=Incline Bench Press (Dumbbell)">—</b>% against four weeks earlier. The cut runs to Dec 13.</p>
+  </header>
+
+
+  <section class="rt-sec" id="weight">
+    <article class="rt-card" id="card-weight">
+      <div class="rt-card-top">
+        <h2 class="rt-h2">Body weight</h2>
+        <div class="rt-seg" id="weight-range" role="group" aria-label="Time range">
+          <button type="button" data-range="1m">1M</button>
+          <button type="button" data-range="3m">3M</button>
+          <button type="button" data-range="phase">Phase 1</button>
+          <button type="button" data-range="1y">1Y</button>
+          <button type="button" data-range="all">All</button>
+        </div>
+      </div>
+      <div class="rt-tiles">
+        <div class="rt-tile"><span class="rt-tile-l">7-day average</span><span class="rt-tile-v"><span class="dash-skeleton" data-source="bw_summary" data-field="avg">—</span><small>lb</small></span></div>
+        <div class="rt-tile"><span class="rt-tile-l">Change vs 7 days earlier</span><span class="rt-tile-v" id="tile-rate"><span data-source="bw_summary" data-field="change_7d">—</span><small>lb</small></span></div>
+        <div class="rt-tile"><span class="rt-tile-l">Since phase start (155)</span><span class="rt-tile-v" id="tile-start"><span data-source="bw_summary" data-field="vs_start">—</span><small>lb</small></span></div>
+        <div class="rt-tile"><span class="rt-tile-l">Above Dec 13 target (156)</span><span class="rt-tile-v"><span data-source="bw_summary" data-field="to_target">—</span><small>lb</small></span></div>
+        <div class="rt-tile"><span class="rt-tile-l">Needed per week to hit 156 by Dec 13</span><span class="rt-tile-v" id="tile-need"><span data-source="bw_summary" data-field="needed_per_week">—</span><small>lb/wk</small></span></div>
+        <div class="rt-tile"><span class="rt-tile-l">Weeks left in the cut</span><span class="rt-tile-v"><span data-source="bw_summary" data-field="weeks_left">—</span></span></div>
+        <div class="rt-tile"><span class="rt-tile-l">Days weighed</span><span class="rt-tile-v"><span data-source="bw_summary" data-field="days_logged">—</span></span></div>
+        <div class="rt-tile"><span class="rt-tile-l">Waist at navel</span><span class="rt-tile-v"><span data-source="waist_summary" data-field="waist_in">—</span><small>in</small></span></div>
+        <div class="rt-tile"><span class="rt-tile-l">Waist vs Nov 1 (33.0)</span><span class="rt-tile-v" id="tile-waist"><span data-source="waist_summary" data-field="vs_base">—</span><small>in</small></span></div>
+      </div>
+      <div class="rt-legend" id="weight-legend"></div>
+      <div class="rt-chart rt-chart-lg" id="chart-weight" data-source="bw_daily"></div>
+      <p class="rt-note">Dots are single morning weigh-ins; the line is the trailing 7-day average, which is the number to judge. Target: 156 by Dec 13 (≈3 lb of fat from Nov 1, ~20% body fat at the Oct 30 DEXA lean mass). The dashed orange line runs from your latest 7-day average to 156 on Dec 13, and its slope is the weekly loss needed from here. The safe limit is −0.6 lb/week; if the line needs more than that, the tile turns red and the plan is to keep the deficit as it is and let the date slip, not to cut harder. Hollow markers are one-off reference weights: the April 2023 DEXA (149 lb) and the May 31, 2026 phase start (155 lb). Shaded bands are the planned phases. The line breaks where more than 10 days have no weigh-ins.</p>
+    </article>
+  </section>
+
+  <section class="rt-sec" id="lifts">
+    <h2 class="rt-h2">Key lifts</h2>
+    <p class="rt-note">Big number: your heaviest working set in the latest session (lb as logged × reps). The line is estimated 1-rep max (Epley: weight × (1 + reps ÷ 30)), so a heavier set for fewer reps compares fairly with a lighter set for more. Dots are the top-set weight. Warm-up sets are left out.</p>
+    <div class="rt-grid rt-grid-lifts">
+<article class="rt-card rt-lift" id="lift-incline" data-ex="Incline Bench Press (Dumbbell)">
+  <div class="rt-card-top"><h3 class="rt-h3">Incline DB press</h3><span class="rt-pill" hidden></span></div>
+  <div class="rt-big"><span class="dash-skeleton" data-source="lift_summary" data-field="last_weight" data-where="exercise=Incline Bench Press (Dumbbell)">—</span><span class="rt-x">×</span><span data-source="lift_summary" data-field="last_reps" data-where="exercise=Incline Bench Press (Dumbbell)">—</span></div>
+  <div class="rt-sub">e1RM <span data-source="lift_summary" data-field="last_e1rm" data-where="exercise=Incline Bench Press (Dumbbell)">—</span> · <span class="rt-chg" data-source="lift_summary" data-field="change_pct" data-where="exercise=Incline Bench Press (Dumbbell)">—</span> vs 4 wks earlier · <span data-source="lift_summary" data-field="last_date" data-where="exercise=Incline Bench Press (Dumbbell)">—</span></div>
+  <div class="rt-chart rt-chart-sm" data-source="top_sets"></div>
+</article>
+<article class="rt-card rt-lift" id="lift-pulldown" data-ex="Lat Pulldown (Cable)">
+  <div class="rt-card-top"><h3 class="rt-h3">Lat pulldown</h3><span class="rt-pill" hidden></span></div>
+  <div class="rt-big"><span class="dash-skeleton" data-source="lift_summary" data-field="last_weight" data-where="exercise=Lat Pulldown (Cable)">—</span><span class="rt-x">×</span><span data-source="lift_summary" data-field="last_reps" data-where="exercise=Lat Pulldown (Cable)">—</span></div>
+  <div class="rt-sub">e1RM <span data-source="lift_summary" data-field="last_e1rm" data-where="exercise=Lat Pulldown (Cable)">—</span> · <span class="rt-chg" data-source="lift_summary" data-field="change_pct" data-where="exercise=Lat Pulldown (Cable)">—</span> vs 4 wks earlier · <span data-source="lift_summary" data-field="last_date" data-where="exercise=Lat Pulldown (Cable)">—</span></div>
+  <div class="rt-chart rt-chart-sm" data-source="top_sets"></div>
+</article>
+<article class="rt-card rt-lift" id="lift-hipthrust" data-ex="Hip Thrust (Machine)">
+  <div class="rt-card-top"><h3 class="rt-h3">Hip thrust</h3><span class="rt-pill" hidden></span></div>
+  <div class="rt-big"><span class="dash-skeleton" data-source="lift_summary" data-field="last_weight" data-where="exercise=Hip Thrust (Machine)">—</span><span class="rt-x">×</span><span data-source="lift_summary" data-field="last_reps" data-where="exercise=Hip Thrust (Machine)">—</span></div>
+  <div class="rt-sub">e1RM <span data-source="lift_summary" data-field="last_e1rm" data-where="exercise=Hip Thrust (Machine)">—</span> · <span class="rt-chg" data-source="lift_summary" data-field="change_pct" data-where="exercise=Hip Thrust (Machine)">—</span> vs 4 wks earlier · <span data-source="lift_summary" data-field="last_date" data-where="exercise=Hip Thrust (Machine)">—</span></div>
+  <div class="rt-chart rt-chart-sm" data-source="top_sets"></div>
+</article>
+<article class="rt-card rt-lift" id="lift-lateral" data-ex="Lateral Raise (Dumbbell)">
+  <div class="rt-card-top"><h3 class="rt-h3">DB lateral raise</h3><span class="rt-pill" hidden></span></div>
+  <div class="rt-big"><span class="dash-skeleton" data-source="lift_summary" data-field="last_weight" data-where="exercise=Lateral Raise (Dumbbell)">—</span><span class="rt-x">×</span><span data-source="lift_summary" data-field="last_reps" data-where="exercise=Lateral Raise (Dumbbell)">—</span></div>
+  <div class="rt-sub">e1RM <span data-source="lift_summary" data-field="last_e1rm" data-where="exercise=Lateral Raise (Dumbbell)">—</span> · <span class="rt-chg" data-source="lift_summary" data-field="change_pct" data-where="exercise=Lateral Raise (Dumbbell)">—</span> vs 4 wks earlier · <span data-source="lift_summary" data-field="last_date" data-where="exercise=Lateral Raise (Dumbbell)">—</span></div>
+  <div class="rt-chart rt-chart-sm" data-source="top_sets"></div>
+</article>
+<article class="rt-card rt-lift" id="lift-deadlift" data-ex="Deadlift (Smith Machine)">
+  <div class="rt-card-top"><h3 class="rt-h3">Smith deadlift</h3><span class="rt-pill" hidden></span></div>
+  <div class="rt-big"><span class="dash-skeleton" data-source="lift_summary" data-field="last_weight" data-where="exercise=Deadlift (Smith Machine)">—</span><span class="rt-x">×</span><span data-source="lift_summary" data-field="last_reps" data-where="exercise=Deadlift (Smith Machine)">—</span></div>
+  <div class="rt-sub">e1RM <span data-source="lift_summary" data-field="last_e1rm" data-where="exercise=Deadlift (Smith Machine)">—</span> · <span class="rt-chg" data-source="lift_summary" data-field="change_pct" data-where="exercise=Deadlift (Smith Machine)">—</span> vs 4 wks earlier · <span data-source="lift_summary" data-field="last_date" data-where="exercise=Deadlift (Smith Machine)">—</span></div>
+  <div class="rt-chart rt-chart-sm" data-source="top_sets"></div>
+</article>
+<article class="rt-card rt-lift" id="lift-bench" data-ex="Bench Press (Dumbbell)">
+  <div class="rt-card-top"><h3 class="rt-h3">Flat DB press</h3><span class="rt-pill" hidden></span></div>
+  <div class="rt-big"><span class="dash-skeleton" data-source="lift_summary" data-field="last_weight" data-where="exercise=Bench Press (Dumbbell)">—</span><span class="rt-x">×</span><span data-source="lift_summary" data-field="last_reps" data-where="exercise=Bench Press (Dumbbell)">—</span></div>
+  <div class="rt-sub">e1RM <span data-source="lift_summary" data-field="last_e1rm" data-where="exercise=Bench Press (Dumbbell)">—</span> · <span class="rt-chg" data-source="lift_summary" data-field="change_pct" data-where="exercise=Bench Press (Dumbbell)">—</span> vs 4 wks earlier · <span data-source="lift_summary" data-field="last_date" data-where="exercise=Bench Press (Dumbbell)">—</span></div>
+  <div class="rt-chart rt-chart-sm" data-source="top_sets"></div>
+</article>
+    </div>
+  </section>
+
+  <section class="rt-sec" id="body">
+    <h2 class="rt-h2">Intake and training volume</h2>
+    <div class="rt-grid">
+      <article class="rt-card" id="card-cal">
+        <h3 class="rt-h3">Calories logged (Net)</h3>
+        <p class="rt-note">Dashed lines: 2,600 (old goal) and 2,400 (goal from Oct 26, counted on Total). Average <b data-source="cal_summary" data-field="avg">—</b> kcal.</p>
+        <div class="rt-chart" id="chart-cal" data-source="calories"></div>
+      </article>
+      <article class="rt-card" id="card-volume">
+        <h3 class="rt-h3">Working sets per week</h3>
+        <p class="rt-note">All logged working sets, Monday to Sunday, since February. Gaps are weeks with nothing logged.</p>
+        <div class="rt-chart" id="chart-volume" data-source="weekly_sets"></div>
+      </article>
+    </div>
+  </section>
+
+  <section class="rt-sec" id="explore">
+    <article class="rt-card" id="card-explore">
+      <div class="rt-card-top">
+        <h3 class="rt-h3">Any exercise</h3>
+        <div class="rt-ctrl"><label for="rt-ex">Exercise</label><select id="rt-ex" data-source="top_sets"></select></div>
+      </div>
+      <div class="rt-legend" id="explore-legend"></div>
+      <div class="rt-chart" id="chart-explore" data-source="top_sets"></div>
+      <div class="rt-tablebox">
+        <table class="rt-table" id="table-explore" data-source="top_sets" data-row-key="date,exercise">
+          <thead><tr>
+            <th data-field="date">Date</th>
+            <th data-field="weight">Top weight</th>
+            <th data-field="reps">Reps</th>
+            <th data-field="e1rm">e1RM</th>
+            <th data-field="sets" class="hide-narrow">Working sets</th>
+            <th data-field="volume" class="hide-narrow">Volume (lb)</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </article>
+  </section>
+</div>
+
+<script>
+const MON = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+window.RT_MON = MON;
+
+dash.calc('top_sets', {
+  title: 'Top set per exercise per day',
+  description: 'Heaviest working set (warm-ups and bodyweight sets left out) for each exercise on each day, with estimated 1-rep max by the Epley formula.',
+  inputs: ['workouts'],
+  fn: (workouts) => {
+    const mon = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+    const groups = new Map();
+    for (const r of workouts) {
+      if (r.set_type !== 'normal') continue;
+      const w = Number(r.weight_lbs), reps = Number(r.reps);
+      if (!r.weight_lbs || !w || !reps) continue;
+      const [d, m, y] = String(r.start_time).split(',')[0].trim().split(' ');
+      const date = `${y}-${mon[m]}-${d.padStart(2, '0')}`;
+      const key = date + '|' + r.exercise_title;
+      let g = groups.get(key);
+      if (!g) groups.set(key, g = {date, exercise: r.exercise_title, weight: 0, reps: 0, e1rm: 0, sets: 0, volume: 0});
+      if (w > g.weight || (w === g.weight && reps > g.reps)) { g.weight = w; g.reps = reps; }
+      g.e1rm = Math.max(g.e1rm, Math.round(w * (1 + reps / 30) * 10) / 10);
+      g.sets += 1;
+      g.volume += w * reps;
+    }
+    return [...groups.values()].sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  },
+});
+
+dash.calc('lift_summary', {
+  title: 'Latest top set vs 4 weeks earlier',
+  description: 'For each exercise: the latest top set, and the change in estimated 1-rep max against the latest session at least 28 days before it.',
+  inputs: ['top_sets'],
+  fn: (top_sets) => {
+    const day = (s) => Date.parse(s + 'T00:00:00Z');
+    const by = new Map();
+    for (const r of top_sets) { if (!by.has(r.exercise)) by.set(r.exercise, []); by.get(r.exercise).push(r); }
+    return [...by.entries()].map(([exercise, rows]) => {
+      const last = rows[rows.length - 1];
+      const cutoff = day(last.date) - 28 * 864e5;
+      const prior = rows.filter((r) => day(r.date) <= cutoff).pop() || null;
+      return {
+        exercise, sessions: rows.length,
+        last_date: last.date, last_weight: last.weight, last_reps: last.reps, last_e1rm: last.e1rm,
+        prior_date: prior ? prior.date : null, prior_e1rm: prior ? prior.e1rm : null,
+        change_pct: prior ? Math.round((last.e1rm - prior.e1rm) / prior.e1rm * 1000) / 10 : null,
+      };
+    });
+  },
+});
+
+dash.calc('weekly_sets', {
+  title: 'Working sets per week',
+  description: 'Logged working sets (warm-ups left out) and sessions per Monday-start week; weeks with nothing logged count as zero.',
+  inputs: ['workouts'],
+  fn: (workouts) => {
+    const mon = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+    const weekOf = (t) => { const dt = new Date(t); const back = (dt.getUTCDay() + 6) % 7; return t - back * 864e5; };
+    const weeks = new Map();
+    for (const r of workouts) {
+      if (r.set_type !== 'normal' || !Number(r.reps)) continue;
+      const [d, m, y] = String(r.start_time).split(',')[0].trim().split(' ');
+      const wk = weekOf(Date.UTC(+y, mon[m], +d));
+      let g = weeks.get(wk);
+      if (!g) weeks.set(wk, g = {sets: 0, sessions: new Set()});
+      g.sets += 1; g.sessions.add(r.start_time);
+    }
+    const keys = [...weeks.keys()].sort((a, b) => a - b);
+    const out = [];
+    if (!keys.length) return out;
+    for (let t = keys[0]; t <= keys[keys.length - 1]; t += 7 * 864e5) {
+      const g = weeks.get(t);
+      out.push({week: new Date(t).toISOString().slice(0, 10), sets: g ? g.sets : 0, sessions: g ? g.sessions.size : 0});
+    }
+    return out;
+  },
+});
+
+dash.calc('bw_daily', {
+  title: 'Weigh-ins with 7-day average',
+  description: 'Each morning weigh-in with the average of all weigh-ins in the 7 days ending that day; one-off reference weights are kept but not averaged.',
+  inputs: ['bodyweight'],
+  fn: (bodyweight) => {
+    const t = (s) => Date.parse(s + 'T00:00:00Z');
+    const rows = bodyweight.map((r) => ({date: String(r.date).slice(0, 10), weight_lb: Number(r.weight_lb), kind: r.kind || 'scale', label: r.label || ''}))
+      .sort((a, b) => t(a.date) - t(b.date));
+    const scale = rows.filter((r) => r.kind === 'scale');
+    return rows.map((r) => {
+      if (r.kind !== 'scale') return {...r, avg7: null, n7: 0};
+      const win = scale.filter((s) => t(s.date) <= t(r.date) && t(s.date) > t(r.date) - 7 * 864e5);
+      const avg = win.reduce((a, s) => a + s.weight_lb, 0) / win.length;
+      return {...r, avg7: Math.round(avg * 10) / 10, n7: win.length};
+    });
+  },
+});
+
+dash.calc('bw_summary', {
+  title: 'Weight trend summary',
+  description: 'Latest 7-day average weight, its change against the 7-day average a week earlier, the gap to the 155 lb phase start and the 156 lb Dec 13 target, and the weekly change needed from here to reach 156 by Dec 13.',
+  inputs: ['bw_daily'],
+  fn: (bw_daily) => {
+    const t = (s) => Date.parse(s + 'T00:00:00Z');
+    const scale = bw_daily.filter((r) => r.kind === 'scale');
+    if (!scale.length) return [];
+    const last = scale[scale.length - 1];
+    const prior = scale.filter((r) => t(r.date) <= t(last.date) - 7 * 864e5).pop() || null;
+    const r1 = (v) => Math.round(v * 10) / 10;
+    return [{
+      date: last.date, avg: last.avg7,
+      change_7d: prior ? r1(last.avg7 - prior.avg7) : null,
+      vs_start: r1(last.avg7 - 155), to_target: r1(last.avg7 - 156),
+      days_logged: scale.length,
+      weeks_left: r1(Math.max(0, (t('2026-12-13') - t(last.date)) / (7 * 864e5))),
+      needed_per_week: t('2026-12-13') > t(last.date) ? Math.round((156 - last.avg7) / ((t('2026-12-13') - t(last.date)) / (7 * 864e5)) * 100) / 100 : null,
+    }];
+  },
+});
+
+dash.calc('cal_summary', {
+  title: 'Average calories logged',
+  description: 'Average of the logged daily Net calories.',
+  inputs: ['calories'],
+  fn: (calories) => {
+    const v = calories.map((r) => Number(r.net_kcal));
+    return [{avg: Math.round(v.reduce((a, b) => a + b, 0) / v.length), days: v.length}];
+  },
+});
+
+dash.calc('waist_summary', {
+  title: 'Latest waist',
+  description: 'Most recent waist measurement at the navel and its change against the 33.0 in Nov 1 baseline.',
+  inputs: ['waist'],
+  fn: (waist) => {
+    const rows = waist.map((r) => ({date: String(r.date).slice(0, 10), waist_in: Number(r.waist_in)})).sort((a, b) => a.date < b.date ? -1 : 1);
+    if (!rows.length) return [];
+    const last = rows[rows.length - 1];
+    return [{date: last.date, waist_in: last.waist_in, vs_base: Math.round((last.waist_in - 33) * 10) / 10}];
+  },
+});
+
+/* ---------- shared drawing helpers ---------- */
+window.RT = (() => {
+  const dayParse = (s) => new Date(s + 'T00:00:00Z');
+  const fDay = d3.utcFormat('%b %-d');
+  const fNum = d3.format(',');
+  const measure = (svg, strings) => {
+    const g = svg.append('g').attr('class', 'rt-measure');
+    let w = 0;
+    for (const s of strings) { const t = g.append('text').text(s); w = Math.max(w, t.node().getComputedTextLength()); }
+    g.remove();
+    return w;
+  };
+  const tipFor = (box) => {
+    let t = box.querySelector('.rt-tip');
+    if (!t) { t = document.createElement('div'); t.className = 'rt-tip'; t.hidden = true; box.appendChild(t); }
+    return t;
+  };
+  const showTip = (box, tip, px, py, head, lines) => {
+    tip.replaceChildren();
+    const h = document.createElement('div'); h.className = 'rt-tip-h'; h.textContent = head; tip.appendChild(h);
+    for (const [label, value, color] of lines) {
+      const row = document.createElement('div');
+      if (color) { const sw = document.createElement('span'); sw.className = 'rt-sw'; sw.style.background = color; row.appendChild(sw); }
+      row.appendChild(document.createTextNode(label ? `${label}: ${value}` : value));
+      tip.appendChild(row);
+    }
+    tip.hidden = false;
+    const bw = box.clientWidth, tw = tip.offsetWidth, th = tip.offsetHeight;
+    let left = px + 12; if (left + tw > bw) left = px - tw - 12; if (left < 0) left = 0;
+    let top = py - th - 8; if (top < 0) top = py + 12;
+    tip.style.left = left + 'px'; tip.style.top = top + 'px';
+  };
+  const status = (box, d) => {
+    box.classList.remove('dash-skeleton');
+    if (d.status === 'ok') return true;
+    box.replaceChildren();
+    if (d.status === 'loading' || d.status === 'missing') { box.classList.add('dash-skeleton'); return false; }
+    if (d.status === 'error' || d.status === 'connect' || d.status === 'declined') {
+      const f = document.createElement('div'); f.className = 'rt-fail'; f.textContent = 'Failed to load'; box.appendChild(f);
+    }
+    return false;
+  };
+  const empty = (box, msg) => { box.replaceChildren(); const e = document.createElement('div'); e.className = 'rt-empty'; e.textContent = msg; box.appendChild(e); };
+  const drawn = new WeakSet();
+
+  // rows: [{date: Date, ...}], series: [{key, label, color, line, dots}]
+  function lineChart(box, rows, o) {
+    box.replaceChildren();
+    const W = Math.max(box.clientWidth, 220), H = o.h || 200;
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`);
+    const vals = [];
+    for (const s of o.series) for (const r of rows) if (r[s.key] != null) vals.push(r[s.key]);
+    for (const ref of (o.refs || [])) vals.push(ref.v);
+    let [lo, hi] = d3.extent(vals);
+    const pad = Math.max((hi - lo) * 0.08, hi * 0.02, 1);
+    const y = d3.scaleLinear([lo - pad, hi + pad], [H - 22, 8]).nice(4);
+    const yt = y.ticks(4);
+    const yfmt = o.yfmt || fNum;
+    const ml = Math.ceil(measure(svg, yt.map(yfmt))) + 8;
+    const refLabelW = (o.refs || []).length ? Math.ceil(measure(svg, o.refs.map((r) => r.label))) + 6 : 0;
+    const mr = Math.max(10, refLabelW);
+    let [d0, d1] = d3.extent(rows, (r) => r.date);
+    if (+d0 === +d1) { d0 = new Date(+d0 - 864e5); d1 = new Date(+d1 + 864e5); }
+    const x = d3.scaleUtc([d0, d1], [ml, W - mr]);
+    const spanDays = (d1 - d0) / 864e5;
+    const xfmt = spanDays > 150 ? d3.utcFormat('%b') : fDay;
+    const nx = Math.max(2, Math.min(spanDays > 150 ? 8 : 6, Math.floor((W - ml - mr) / 70)));
+    const g = svg.append('g');
+    g.append('g').selectAll('line').data(yt).join('line')
+      .attr('x1', ml).attr('x2', W - mr).attr('y1', (v) => y(v)).attr('y2', (v) => y(v))
+      .attr('stroke', 'var(--cds-chart-grid)').attr('stroke-width', 1);
+    g.append('g').selectAll('text').data(yt).join('text')
+      .attr('x', ml - 6).attr('y', (v) => y(v)).attr('dy', '0.32em').attr('text-anchor', 'end').text(yfmt);
+    const xt = x.ticks(nx);
+    g.append('g').selectAll('text').data(xt).join('text')
+      .attr('x', (v) => x(v)).attr('y', H - 4).attr('text-anchor', 'middle').text(xfmt);
+    for (const ref of (o.refs || [])) {
+      g.append('line').attr('x1', ml).attr('x2', W - mr).attr('y1', y(ref.v)).attr('y2', y(ref.v))
+        .attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 4').attr('stroke-width', 1);
+      g.append('text').attr('x', W - mr + 4).attr('y', y(ref.v)).attr('dy', '0.32em').text(ref.label);
+    }
+    o.series.forEach((s) => {
+      const pts = rows.filter((r) => r[s.key] != null);
+      if (s.line !== false && pts.length > 1) {
+        const path = g.append('path').datum(pts)
+          .attr('fill', 'none').attr('stroke', s.color).attr('stroke-width', 2)
+          .attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round')
+          .attr('d', d3.line().x((r) => x(r.date)).y((r) => y(r[s.key])));
+        if (!drawn.has(box)) { const len = path.node().getTotalLength(); path.attr('class', 'rt-line-in').style('--len', len); }
+      }
+      if (s.dots) {
+        g.append('g').selectAll('circle').data(pts).join('circle')
+          .attr('cx', (r) => x(r.date)).attr('cy', (r) => y(r[s.key])).attr('r', s.dotR || 2.5)
+          .attr('fill', s.dotFill || s.color).attr('opacity', s.dotOpacity ?? 1);
+      }
+    });
+    drawn.add(box);
+    // last point emphasis
+    const lastS = o.series[0];
+    const lastPt = rows.filter((r) => r[lastS.key] != null).pop();
+    if (lastPt) g.append('circle').attr('cx', x(lastPt.date)).attr('cy', y(lastPt[lastS.key])).attr('r', 3.5).attr('fill', lastS.color);
+    // hover
+    const tip = tipFor(box);
+    const hover = g.append('g').attr('pointer-events', 'none');
+    const bis = d3.bisector((r) => r.date).center;
+    svg.append('rect').attr('x', ml).attr('y', 0).attr('width', Math.max(0, W - ml - mr)).attr('height', H - 18)
+      .attr('fill', 'transparent')
+      .on('pointermove', (ev) => {
+        const [mx] = d3.pointer(ev);
+        const r = rows[bis(rows, x.invert(mx))];
+        if (!r) return;
+        hover.selectAll('*').remove();
+        hover.append('line').attr('x1', x(r.date)).attr('x2', x(r.date)).attr('y1', 8).attr('y2', H - 22).attr('stroke', 'var(--cds-chart-axis)').attr('stroke-width', 1);
+        for (const s of o.series) if (r[s.key] != null) hover.append('circle').attr('cx', x(r.date)).attr('cy', y(r[s.key])).attr('r', 4).attr('fill', s.color).attr('stroke', 'var(--color-panel)').attr('stroke-width', 1.5);
+        const scale = box.clientWidth / W;
+        showTip(box, tip, x(r.date) * scale, y(r[o.series[0].key] ?? lo) * scale, fDay(r.date), o.tipLines(r));
+      })
+      .on('pointerleave', () => { hover.selectAll('*').remove(); tip.hidden = true; });
+  }
+
+  function barChart(box, rows, o) {
+    box.replaceChildren();
+    const W = Math.max(box.clientWidth, 220), H = o.h || 200;
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`);
+    const vals = rows.map((r) => r[o.y]).concat((o.refs || []).map((r) => r.v));
+    const y = d3.scaleLinear([0, d3.max(vals) * 1.08], [H - 22, 8]).nice(4);
+    const yt = y.ticks(4);
+    const ml = Math.ceil(measure(svg, yt.map(fNum))) + 8;
+    const refLabelW = (o.refs || []).length ? Math.ceil(measure(svg, o.refs.map((r) => r.label))) + 6 : 0;
+    const mr = Math.max(6, refLabelW);
+    const x = d3.scaleBand(rows.map((r) => r[o.x]), [ml, W - mr]).padding(0.25);
+    const g = svg.append('g');
+    g.append('g').selectAll('line').data(yt).join('line')
+      .attr('x1', ml).attr('x2', W - mr).attr('y1', (v) => y(v)).attr('y2', (v) => y(v))
+      .attr('stroke', 'var(--cds-chart-grid)').attr('stroke-width', 1);
+    g.append('g').selectAll('text').data(yt).join('text')
+      .attr('x', ml - 6).attr('y', (v) => y(v)).attr('dy', '0.32em').attr('text-anchor', 'end').text(fNum);
+    const labW = Math.max(1, Math.ceil(measure(svg, rows.map((r) => o.xfmt(r[o.x])))) + 8);
+    const every = Math.max(1, Math.ceil(labW / x.step()));
+    g.append('g').selectAll('text').data(rows.filter((r, i) => (rows.length - 1 - i) % every === 0)).join('text')
+      .attr('x', (r) => x(r[o.x]) + x.bandwidth() / 2).attr('y', H - 4).attr('text-anchor', 'middle').text((r) => o.xfmt(r[o.x]));
+    const bw = Math.min(32, x.bandwidth());
+    const bars = g.append('g').selectAll('rect').data(rows).join('rect')
+      .attr('x', (r) => x(r[o.x]) + (x.bandwidth() - bw) / 2).attr('width', bw)
+      .attr('y', (r) => y(r[o.y])).attr('height', (r) => Math.max(0, y(0) - y(r[o.y])))
+      .attr('rx', Math.min(4, bw / 2)).attr('fill', o.color);
+    for (const ref of (o.refs || [])) {
+      g.append('line').attr('x1', ml).attr('x2', W - mr).attr('y1', y(ref.v)).attr('y2', y(ref.v))
+        .attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 4').attr('stroke-width', 1);
+      g.append('text').attr('x', W - mr + 4).attr('y', y(ref.v)).attr('dy', '0.32em').text(ref.label);
+    }
+    const tip = tipFor(box);
+    bars.on('pointerenter', (ev, r) => {
+      bars.attr('opacity', (d) => d === r ? 1 : 0.55);
+      const scale = box.clientWidth / W;
+      showTip(box, tip, (x(r[o.x]) + x.bandwidth() / 2) * scale, y(r[o.y]) * scale, o.tipHead(r), o.tipLines(r));
+    }).on('pointerleave', () => { bars.attr('opacity', 1); tip.hidden = true; });
+  }
+
+  return {dayParse, fDay, fNum, status, empty, lineChart, barChart};
+})();
+</script>
+
+<script>
+/* ---------- key lifts ---------- */
+(() => {
+  const cards = [...document.querySelectorAll('#lifts .rt-lift')];
+  dash.onData(() => {
+    const top = dash.data('top_sets'), sum = dash.data('lift_summary');
+    const allRows = top.status === 'ok' ? top.data : [];
+    const newest = allRows.length ? allRows[allRows.length - 1].date : null;
+    const sums = new Map((sum.status === 'ok' ? sum.data : []).map((r) => [r.exercise, r]));
+    for (const card of cards) {
+      const ex = card.dataset.ex;
+      const s = sums.get(ex);
+      const spans = card.querySelectorAll('[data-source="lift_summary"]');
+      for (const el of spans) {
+        el.classList.toggle('dash-skeleton', sum.status === 'loading');
+        const f = el.dataset.field;
+        let v = s ? s[f] : null;
+        if (v == null) { el.textContent = '—'; el.classList.remove('up', 'down'); continue; }
+        if (f === 'last_date') el.textContent = RT.fDay(RT.dayParse(v));
+        else if (f === 'change_pct') {
+          el.textContent = (v > 0 ? '+' : '') + v + '%';
+          el.classList.toggle('up', v > 0); el.classList.toggle('down', v < 0);
+        } else el.textContent = RT.fNum(v);
+      }
+      const pill = card.querySelector('.rt-pill');
+      if (s && newest && (Date.parse(newest) - Date.parse(s.last_date)) / 864e5 > 14) {
+        pill.hidden = false; pill.textContent = 'Not logged since ' + RT.fDay(RT.dayParse(s.last_date));
+      } else pill.hidden = true;
+      const box = card.querySelector('.rt-chart');
+      if (!RT.status(box, top)) continue;
+      const rows = allRows.filter((r) => r.exercise === ex).map((r) => ({...r, date: RT.dayParse(r.date)}));
+      if (!rows.length) { RT.empty(box, 'Not in your log yet'); continue; }
+      RT.lineChart(box, rows, {
+        h: 150,
+        series: [
+          {key: 'e1rm', label: 'e1RM', color: dash.colors[0]},
+          {key: 'weight', label: 'Top weight', color: dash.colors[1], line: false, dots: true, dotR: 2, dotOpacity: 0.8},
+        ],
+        tipLines: (r) => [['Top set', `${RT.fNum(r.weight)} × ${r.reps}`, dash.colors[1]], ['e1RM', RT.fNum(r.e1rm), dash.colors[0]]],
+      });
+    }
+  });
+})();
+</script>
+
+<script>
+/* ---------- weight, calories, volume ---------- */
+(() => {
+  dash.onData(() => {
+    const inc = dash.data('lift_summary');
+    const incEl = document.querySelector('#takeaway [data-source="lift_summary"]');
+    const ir = inc.status === 'ok' ? inc.data.find((r) => r.exercise === 'Incline Bench Press (Dumbbell)') : null;
+    incEl.textContent = ir && ir.change_pct != null ? (ir.change_pct > 0 ? '+' : '') + ir.change_pct : '—';
+
+    const calSum = dash.data('cal_summary');
+    const calEl = document.querySelector('[data-source="cal_summary"]');
+    calEl.textContent = calSum.status === 'ok' ? RT.fNum(calSum.data[0].avg) : '—';
+
+    const cal = dash.data('calories');
+    const calBox = document.getElementById('chart-cal');
+    if (RT.status(calBox, cal)) {
+      const rows = cal.data.map((r) => ({date: String(r.date).slice(0, 10), net_kcal: Number(r.net_kcal)}));
+      RT.barChart(calBox, rows, {
+        x: 'date', y: 'net_kcal', color: dash.colors[0], h: 200,
+        xfmt: (s) => d3.utcFormat('%a')(RT.dayParse(s)),
+        refs: [{v: 2600, label: '2,600'}, {v: 2400, label: '2,400'}],
+        tipHead: (r) => RT.fDay(RT.dayParse(r.date)),
+        tipLines: (r) => [['', '≈ ' + RT.fNum(r.net_kcal) + ' kcal']],
+      });
+    }
+
+    const vol = dash.data('weekly_sets');
+    const volBox = document.getElementById('chart-volume');
+    if (RT.status(volBox, vol)) {
+      RT.barChart(volBox, vol.data, {
+        x: 'week', y: 'sets', color: dash.colors[0], h: 200,
+        xfmt: (s) => RT.fDay(RT.dayParse(s)),
+        tipHead: (r) => 'Week of ' + RT.fDay(RT.dayParse(r.week)),
+        tipLines: (r) => [['Working sets', RT.fNum(r.sets)], ['Sessions', RT.fNum(r.sessions)]],
+      });
+    }
+  });
+})();
+</script>
+
+<script>
+/* ---------- body weight, long form ---------- */
+(() => {
+  const box = document.getElementById('chart-weight');
+  const legend = document.getElementById('weight-legend');
+  const btns = [...document.querySelectorAll('#weight-range button')];
+  btns.forEach((b) => b.addEventListener('click', () => dash.setParams({range: b.dataset.range})));
+  const PHASES = [
+    {from: '2026-05-31', to: '2026-12-13', label: 'Phase 1 · cut'},
+    {from: '2026-12-14', to: '2027-12-31', label: 'Phase 2 · lean bulk'},
+  ];
+  const signed = (v) => (v > 0 ? '+' : '') + v;
+  const tipFor = (b) => { let x = b.querySelector('.rt-tip'); if (!x) { x = document.createElement('div'); x.className = 'rt-tip'; x.hidden = true; b.appendChild(x); } return x; };
+  const measure = (svg, strs) => { const g = svg.append('g'); let w = 0; for (const s of strs) w = Math.max(w, g.append('text').text(s).node().getComputedTextLength()); g.remove(); return w; };
+  let animated = false;
+
+  legend.replaceChildren();
+  for (const [label, color, cls] of [['7-day average', dash.colors[0], ''], ['Daily weigh-in', dash.colors[0], 'dot'], ['Reference weight', dash.colors[2], 'dot'], ['Path to Dec 13 target', 'var(--color-warn)', '']]) {
+    const s = document.createElement('span'); s.textContent = label; s.style.setProperty('--sw', color); if (cls) s.className = cls; legend.appendChild(s);
+  }
+
+  dash.onData(() => {
+    const range = dash.params().range || 'phase';
+    btns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.range === range)));
+
+    const sum = dash.data('bw_summary');
+    const sr = sum.status === 'ok' && sum.data.length ? sum.data[0] : null;
+    for (const el of document.querySelectorAll('[data-source="bw_summary"]')) {
+      el.classList.toggle('dash-skeleton', sum.status === 'loading');
+      const f = el.dataset.field, v = sr ? sr[f] : null;
+      el.textContent = v == null ? '—' : (f === 'change_7d' || f === 'vs_start') ? signed(v) : f === 'needed_per_week' ? signed(v) : f === 'avg' || f === 'to_target' || f === 'weeks_left' ? v.toFixed(1) : RT.fNum(v);
+    }
+    const rate = document.getElementById('tile-rate');
+    rate.classList.toggle('good', !!sr && sr.change_7d != null && sr.change_7d <= -0.25 && sr.change_7d >= -0.6);
+    rate.classList.toggle('bad', !!sr && sr.change_7d != null && (sr.change_7d > 0 || sr.change_7d < -0.6));
+    const ws = dash.data('waist_summary');
+    const wr = ws.status === 'ok' && ws.data.length ? ws.data[0] : null;
+    for (const el of document.querySelectorAll('[data-source="waist_summary"]')) {
+      const f = el.dataset.field, v = wr ? wr[f] : null;
+      el.textContent = v == null ? '—' : f === 'vs_base' ? signed(v) : v.toFixed(1);
+    }
+    const wt = document.getElementById('tile-waist');
+    wt.classList.toggle('good', !!wr && wr.vs_base < 0);
+    wt.classList.toggle('bad', !!wr && wr.vs_base > 0);
+    const need = document.getElementById('tile-need');
+    need.classList.toggle('good', !!sr && sr.needed_per_week != null && sr.needed_per_week >= -0.6);
+    need.classList.toggle('bad', !!sr && sr.needed_per_week != null && sr.needed_per_week < -0.6);
+    const st = document.getElementById('tile-start');
+    st.classList.toggle('bad', !!sr && sr.vs_start > 0);
+    st.classList.toggle('good', !!sr && sr.vs_start < 0);
+
+    const d = dash.data('bw_daily');
+    if (!RT.status(box, d)) return;
+    const rows = d.data.map((r) => ({...r, t: RT.dayParse(r.date)}));
+    const scale = rows.filter((r) => r.kind === 'scale');
+    const anchors = rows.filter((r) => r.kind !== 'scale');
+    if (!rows.length) { RT.empty(box, 'No weigh-ins yet'); return; }
+    const lastT = d3.max(scale.length ? scale : rows, (r) => r.t);
+    let x0, x1 = new Date(+lastT + 2 * 864e5);
+    if (range === 'phase') { x0 = RT.dayParse('2026-05-25'); x1 = new Date(Math.max(+x1, +RT.dayParse('2026-12-20'))); }
+    else if (range === 'all') x0 = new Date(+d3.min(rows, (r) => r.t) - 20 * 864e5);
+    else x0 = new Date(+lastT - ({'1m': 30, '3m': 91, '1y': 365}[range] || 91) * 864e5);
+    if (+lastT < +RT.dayParse('2026-12-13')) x1 = new Date(Math.max(+x1, +RT.dayParse('2026-12-16')));
+    const vis = rows.filter((r) => r.t >= x0 && r.t <= x1);
+
+    box.replaceChildren();
+    const W = Math.max(box.clientWidth, 240), H = 300;
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`);
+    const vals = vis.map((r) => r.weight_lb).concat([156, 155]);
+    const lo = d3.min(vals), hi = d3.max(vals);
+    const y = d3.scaleLinear([lo - 1.5, hi + 1.5], [H - 24, 22]).nice(5);
+    const yt = y.ticks(5);
+    const ml = Math.ceil(measure(svg, yt.map(String))) + 8;
+    const mr = Math.ceil(measure(svg, ['Dec 13 target 156', 'Start 155'])) + 10;
+    const x = d3.scaleUtc([x0, x1], [ml, W - mr]);
+    const span = (x1 - x0) / 864e5;
+    const xfmt = span > 400 ? d3.utcFormat('%b %Y') : span > 75 ? d3.utcFormat('%b') : d3.utcFormat('%b %-d');
+    const xt = x.ticks(Math.max(2, Math.min(span > 400 ? 6 : 8, Math.floor((W - ml - mr) / 70))));
+    const g = svg.append('g');
+
+    PHASES.forEach((p, i) => {
+      const a = Math.max(+x0, +RT.dayParse(p.from)), b = Math.min(+x1, +RT.dayParse(p.to));
+      if (b <= a) return;
+      g.append('rect').attr('x', x(new Date(a))).attr('width', x(new Date(b)) - x(new Date(a))).attr('y', 18).attr('height', H - 42)
+        .attr('fill', i === 0 ? 'var(--cds-chart-grid)' : 'var(--cds-chart-muted)').attr('opacity', i === 0 ? 0.45 : 0.15);
+      const lab = g.append('text').attr('x', x(new Date(a)) + 6).attr('y', 12).text(p.label);
+      if (lab.node().getComputedTextLength() > x(new Date(b)) - x(new Date(a)) - 8) lab.remove();
+    });
+    g.append('g').selectAll('line').data(yt).join('line')
+      .attr('x1', ml).attr('x2', W - mr).attr('y1', (v) => y(v)).attr('y2', (v) => y(v))
+      .attr('stroke', 'var(--cds-chart-grid)').attr('stroke-width', 1);
+    g.append('g').selectAll('text').data(yt).join('text')
+      .attr('x', ml - 6).attr('y', (v) => y(v)).attr('dy', '0.32em').attr('text-anchor', 'end').text(String);
+    g.append('g').selectAll('text').data(xt).join('text')
+      .attr('x', (v) => x(v)).attr('y', H - 6).attr('text-anchor', 'middle').text(xfmt);
+    for (const ref of [{v: 155, label: 'Start 155'}, {v: 156, label: 'Dec 13 target 156'}]) {
+      g.append('line').attr('x1', ml).attr('x2', W - mr).attr('y1', y(ref.v)).attr('y2', y(ref.v))
+        .attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 4').attr('stroke-width', 1);
+      g.append('text').attr('x', W - mr + 4).attr('y', y(ref.v)).attr('dy', '0.32em').text(ref.label);
+    }
+
+    const sv = scale.filter((r) => r.t >= x0 && r.t <= x1);
+    g.append('g').selectAll('circle').data(sv).join('circle')
+      .attr('cx', (r) => x(r.t)).attr('cy', (r) => y(r.weight_lb)).attr('r', sv.length > 120 ? 1.6 : 2.6)
+      .attr('fill', dash.colors[0]).attr('opacity', 0.35);
+    const seq = [];
+    sv.forEach((r, i) => { if (i && (r.t - sv[i - 1].t) / 864e5 > 10) seq.push(null); seq.push(r); });
+    if (sv.length > 1) {
+      const path = g.append('path').datum(seq).attr('fill', 'none').attr('stroke', dash.colors[0]).attr('stroke-width', 2)
+        .attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round')
+        .attr('d', d3.line().defined((r) => r != null).x((r) => x(r.t)).y((r) => y(r.avg7)));
+      if (!animated) { path.attr('class', 'rt-line-in').style('--len', path.node().getTotalLength()); animated = true; }
+    }
+    const lastR = sv[sv.length - 1];
+    if (lastR) {
+      g.append('circle').attr('cx', x(lastR.t)).attr('cy', y(lastR.avg7)).attr('r', 4).attr('fill', dash.colors[0]);
+    }
+    const tgtT = RT.dayParse('2026-12-13');
+    if (sr && sr.avg != null && RT.dayParse(sr.date) < tgtT && tgtT <= x1) {
+      const fromT = RT.dayParse(sr.date);
+      g.append('line').attr('x1', x(fromT)).attr('y1', y(sr.avg)).attr('x2', x(tgtT)).attr('y2', y(156))
+        .attr('stroke', 'var(--color-warn)').attr('stroke-width', 2).attr('stroke-dasharray', '6 4').attr('stroke-linecap', 'round');
+      g.append('circle').attr('cx', x(tgtT)).attr('cy', y(156)).attr('r', 4).attr('fill', 'var(--color-panel)').attr('stroke', 'var(--color-warn)').attr('stroke-width', 2);
+      const lbl = g.append('text').attr('x', (x(fromT) + x(tgtT)) / 2).attr('y', (y(sr.avg) + y(156)) / 2 - 8).attr('text-anchor', 'middle')
+        .attr('fill', 'var(--color-warn)').text(signed(sr.needed_per_week) + ' lb/wk');
+      if (x(tgtT) - x(fromT) < 70) lbl.remove();
+    }
+    const av = anchors.filter((r) => r.t >= x0 && r.t <= x1);
+    g.append('g').selectAll('circle').data(av).join('circle')
+      .attr('cx', (r) => x(r.t)).attr('cy', (r) => y(r.weight_lb)).attr('r', 4.5)
+      .attr('fill', 'var(--color-panel)').attr('stroke', dash.colors[2]).attr('stroke-width', 2);
+    if (!vis.length) {
+      g.append('text').attr('x', (ml + W - mr) / 2).attr('y', (H - 24 + 22) / 2).attr('text-anchor', 'middle').text('No weigh-ins in this range');
+    }
+
+    const tip = tipFor(box);
+    const hover = g.append('g').attr('pointer-events', 'none');
+    svg.append('rect').attr('x', ml).attr('y', 0).attr('width', Math.max(0, W - ml - mr)).attr('height', H - 20).attr('fill', 'transparent')
+      .on('pointermove', (ev) => {
+        if (!vis.length) return;
+        const [mx] = d3.pointer(ev);
+        const r = vis.reduce((best, c) => Math.abs(x(c.t) - mx) < Math.abs(x(best.t) - mx) ? c : best, vis[0]);
+        hover.selectAll('*').remove();
+        hover.append('line').attr('x1', x(r.t)).attr('x2', x(r.t)).attr('y1', 18).attr('y2', H - 24).attr('stroke', 'var(--cds-chart-axis)');
+        const yy = r.kind === 'scale' ? y(r.avg7) : y(r.weight_lb);
+        hover.append('circle').attr('cx', x(r.t)).attr('cy', yy).attr('r', 4.5).attr('fill', r.kind === 'scale' ? dash.colors[0] : dash.colors[2]).attr('stroke', 'var(--color-panel)').attr('stroke-width', 1.5);
+        tip.replaceChildren();
+        const add = (txt, cls) => { const e = document.createElement('div'); if (cls) e.className = cls; e.textContent = txt; tip.appendChild(e); };
+        add(d3.utcFormat('%a, %b %-d, %Y')(r.t), 'rt-tip-h');
+        if (r.kind === 'scale') { add(`Weigh-in: ${r.weight_lb.toFixed(1)} lb`); add(`7-day average: ${r.avg7.toFixed(1)} lb (${r.n7} day${r.n7 === 1 ? '' : 's'})`); }
+        else { add(r.label || 'Reference weight'); add(`${r.weight_lb.toFixed(1)} lb`); }
+        tip.hidden = false;
+        const sc = box.clientWidth / W, px = x(r.t) * sc, py = yy * sc;
+        const tw = tip.offsetWidth, th = tip.offsetHeight;
+        let left = px + 12; if (left + tw > box.clientWidth) left = px - tw - 12; if (left < 0) left = 0;
+        let top = py - th - 8; if (top < 0) top = py + 12;
+        tip.style.left = left + 'px'; tip.style.top = top + 'px';
+      })
+      .on('pointerleave', () => { hover.selectAll('*').remove(); tip.hidden = true; });
+  });
+})();
+</script>
+
+<script>
+/* ---------- explore any exercise ---------- */
+(() => {
+  const sel = document.getElementById('rt-ex');
+  const box = document.getElementById('chart-explore');
+  const tbody = document.querySelector('#table-explore tbody');
+  const legend = document.getElementById('explore-legend');
+  const enc = (s) => String(s).replace(/%/g, '%25').replace(/,/g, '%2C');
+  sel.addEventListener('change', () => dash.setParams({exercise: sel.value}));
+  dash.onData(() => {
+    const top = dash.data('top_sets');
+    if (!RT.status(box, top)) { sel.replaceChildren(); tbody.replaceChildren(); legend.replaceChildren(); return; }
+    const counts = d3.rollup(top.data, (v) => v.length, (r) => r.exercise);
+    const names = [...counts.keys()].sort((a, b) => counts.get(b) - counts.get(a) || a.localeCompare(b));
+    let ex = dash.params().exercise;
+    if (!counts.has(ex)) ex = names[0];
+    sel.replaceChildren(...names.map((n) => new Option(`${n} (${counts.get(n)})`, n)));
+    sel.value = ex;
+    legend.replaceChildren();
+    for (const [label, color, cls] of [['Estimated 1-rep max', dash.colors[0], ''], ['Top-set weight', dash.colors[1], 'dot']]) {
+      const s = document.createElement('span'); s.textContent = label; s.style.setProperty('--sw', color); if (cls) s.className = cls; legend.appendChild(s);
+    }
+    const rows = top.data.filter((r) => r.exercise === ex);
+    RT.lineChart(box, rows.map((r) => ({...r, date: RT.dayParse(r.date)})), {
+      h: 240,
+      series: [
+        {key: 'e1rm', label: 'e1RM', color: dash.colors[0]},
+        {key: 'weight', label: 'Top weight', color: dash.colors[1], dots: true, dotR: 2.5},
+      ],
+      tipLines: (r) => [['Top set', `${RT.fNum(r.weight)} × ${r.reps}`, dash.colors[1]], ['e1RM', RT.fNum(r.e1rm), dash.colors[0]], ['Working sets', r.sets]],
+    });
+    tbody.replaceChildren(...rows.slice().reverse().map((r) => {
+      const tr = document.createElement('tr');
+      tr.dataset.key = enc(r.date) + ',' + enc(r.exercise);
+      const cells = [RT.fDay(RT.dayParse(r.date)) + ', ' + r.date.slice(0, 4), RT.fNum(r.weight), r.reps, RT.fNum(r.e1rm), r.sets, RT.fNum(r.volume)];
+      cells.forEach((c, i) => { const td = document.createElement('td'); td.textContent = c; if (i >= 4) td.className = 'hide-narrow'; tr.appendChild(td); });
+      return tr;
+    }));
+  });
+})();
+</script>
+
+</div>
+</body>
+</html>

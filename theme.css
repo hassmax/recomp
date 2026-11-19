@@ -1,0 +1,28 @@
+/* Design tokens the dashboard's styles use, standing in for claude.ai's. */
+:root{
+  --font-anthropic-sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-anthropic-serif:Georgia,"Times New Roman",serif;
+  --color-bg:#faf9f5;--color-panel:#ffffff;--color-fg:#1f1e1c;--color-fg-muted:#6b6862;
+  --color-border-line:#e4e1d9;--color-ok:#2e7d4f;--color-bad:#b3402e;--color-warn:#a8650a;
+  --cds-border:#d9d5cb;--cds-surface-popover:#ffffff;--cds-shadow-popover:0 4px 14px rgba(0,0,0,.12);
+  --cds-text-secondary:#6b6862;--cds-chart-grid:#ece9e1;--cds-chart-axis:#9a968d;
+  --cds-chart-reference:#9a968d;--cds-chart-muted:#c9c5bb;
+  --cds-font-size-caption:12px;--cds-font-size-body:14px;--cds-font-size-heading:18px;--cds-font-size-title:30px;
+  --cds-font-weight-medium:500;
+  --cds-gap-xs:4px;--cds-gap-sm:8px;--cds-gap-md:16px;--cds-gap-xl:32px;
+  --cds-pad-xs:4px;--cds-pad-sm:8px;--cds-pad-lg:16px;--cds-radius:8px;
+  --cds-dur-slow:700ms;--cds-ease-out:cubic-bezier(.2,.7,.2,1);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --color-bg:#1b1a18;--color-panel:#252421;--color-fg:#ece9e1;--color-fg-muted:#a29e95;
+    --color-border-line:#3a3834;--color-ok:#6cc08f;--color-bad:#e8826f;--color-warn:#e0a54a;
+    --cds-border:#45423d;--cds-surface-popover:#2d2c28;--cds-shadow-popover:0 4px 14px rgba(0,0,0,.5);
+    --cds-text-secondary:#a29e95;--cds-chart-grid:#33312d;--cds-chart-axis:#7d7a73;
+    --cds-chart-reference:#7d7a73;--cds-chart-muted:#55524c;
+  }
+}
+html,body{margin:0;background:var(--color-bg);color:var(--color-fg)}
+#dash-root{max-width:1200px;margin:0 auto;padding:24px 16px 48px;box-sizing:border-box}
+#dash-root *{box-sizing:border-box}
+#dash-root .dash-skeleton{opacity:.4}
